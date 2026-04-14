@@ -5,7 +5,16 @@
     Created:	12/04/2026 02:04:18
     Author:     DESKTOP-BI0KSD8\User
 */
+#include <Arduino.h>
 #include "ESP32-VirtualMatrixPanel-I2S-DMA.h"
+
+#include <U8g2_for_Adafruit_GFX.h>
+
+#include "u8g2_font_verdana_gr_16x32_tf.c"
+extern const uint8_t u8g2_font_verdana_bold_gr_16x32_tf[];
+//---------------------------------------------------
+
+U8G2_FOR_ADAFRUIT_GFX u8g2;        // U8g2 wrapper για Adafruit_GFX
 
 // Define custom class derived from VirtualMatrixPanel
 class CustomPxBasePanel : public VirtualMatrixPanel
@@ -63,6 +72,9 @@ CustomPxBasePanel* FourScanPanel = nullptr;
 /******************************************************************************
 Setup!
 ******************************************************************************/
+
+bool corect_reset = false;
+
 void setup()
 {
 	Serial.begin(115200);
@@ -79,9 +91,9 @@ void setup()
         NUM_ROWS * NUM_COLS // DO NOT CHANGE THIS
         //,_pins // Uncomment to enable custom pins
     );
-    mxconfig.line_decoder = HUB75_I2S_CFG::SM5368;
+    
     mxconfig.clkphase = false; // Change this if you see pixels showing up shifted wrongly by one column the left or right.
-
+    mxconfig.line_decoder = HUB75_I2S_CFG::SM5368;
     // OK, now we can create our matrix object
     dma_display = new MatrixPanel_I2S_DMA(mxconfig);
 
@@ -100,11 +112,69 @@ void setup()
     // create FourScanPanellay object based on our newly created dma_display object
     FourScanPanel = new CustomPxBasePanel((*dma_display), NUM_ROWS, NUM_COLS, PANEL_RES_X, PANEL_RES_Y, VIRTUAL_MATRIX_CHAIN_TYPE);
 	FourScanPanel->setTextSize(1);
+
+    // Σύνδεση U8g2 renderer με το FourScanPanel (Adafruit_GFX compatible)
+    u8g2.begin(*FourScanPanel);
+
+    // Ρυθμίσεις U8g2
+    //u8g2.setFont(u8g2_font_10x20_t_greek);   // πλήρη ελληνικά + ASCII
+    //u8g2.setFontMode(1);                     // 1 = transparent
+
+    //-------------------------------------------------------------------------------------------
+    FourScanPanel->fillScreen(0);
+
+    FourScanPanel->print("Starting");
+    delay(2000);
+    FourScanPanel->clearScreen();
+
+	delay(100);
+    if (corect_reset)
+    {
+        Serial.println("Performing correct reset...");
+        ESP.restart(); // Restart the ESP32
+    }
+    else
+    {
+		Serial.println("Normal reset...");
+	}
+}
+
+void showTextU8G2(const char* text, uint16_t color, uint16_t bg = 0, uint8_t pos = 1)
+{
+    // Ρυθμίσεις U8g2
+    u8g2.begin(*FourScanPanel);
+    u8g2.setFont(u8g2_font_unifont_t_greek);   // πλήρη ελληνικά + ASCII
+    u8g2.setFontMode(1);                     // 1 = transparent
+    //FourScanPanel->fillScreen(bg);
+    u8g2.setForegroundColor(color);
+    u8g2.setBackgroundColor(bg);
+
+    // u8g2_font_unifont_t_greek ~16px ύψος. Y baseline για 16px block/πάνελ -> 15.
+    u8g2.setCursor(0, 10 + pos);
+    u8g2.print(text);
+
+    FourScanPanel->setCursor(0, 0);
+    FourScanPanel->setTextColor(FourScanPanel->color565(255, 255, 255));
+    
 }
 
 void loop() {
+    Serial.println("Displaying Greek UTF-8 text with U8g2...");
+    showTextU8G2("155", FourScanPanel->color565(0, 180, 0), 10, 0);
+	showTextU8G2("ΘΕΣΕΙΣ", FourScanPanel->color565(255, 180, 0), 0, 12);
+    delay(2000);
+    FourScanPanel->clearScreen();
+
+    showTextU8G2("155", FourScanPanel->color565(0, 180, 0), 10, 0);
+    showTextU8G2("SLOTS", FourScanPanel->color565(255, 180, 0), 0, 12);
+
+    delay(2000);
+    FourScanPanel->clearScreen();
+
+    showTextU8G2("ΠΛΗΡΕΣ", FourScanPanel->color565(255, 0, 0), 0, 7);
+
 	// Print a Hello World message to the panel in 2 lines
-    FourScanPanel->setCursor(0, 0);
+    /*FourScanPanel->setCursor(0, 0);
     FourScanPanel->setTextColor(FourScanPanel->color565(0, 255, 0));
     FourScanPanel->print("HELLO");
     FourScanPanel->setCursor(0, 8);
@@ -123,10 +193,12 @@ void loop() {
     FourScanPanel->print("SYSTEMS");
     FourScanPanel->setCursor(0, 16);
 	FourScanPanel->setTextColor(FourScanPanel->color565(255, 0, 0));
-	FourScanPanel->print("TEST");
+	FourScanPanel->print("TEST");*/
+
+    
 
     delay(2000);
-    FourScanPanel->clearScreen();
+    FourScanPanel->fillScreen(0);
 
     /*
     for (int i = 0; i < FourScanPanel->height(); i++)
